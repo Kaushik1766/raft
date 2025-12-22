@@ -1,64 +1,90 @@
+import json
+import uvicorn
 from typing import Union
-from flask import Flask, json, jsonify, make_response, request
+from fastapi import FastAPI, Request, Response
+from contextlib import asynccontextmanager
 import argparse
 
-from src.network_requests import AppendLog, CommitLog, HeartBeat, RequestType
+from src.network_requests import AppendLog, CommitLog, GetVote, HeartBeat, RequestType
 from src.raft import RaftNode
 
 
-app = Flask(__name__)
-
 node_instance: RaftNode | None = None
-port = 3000
+args = argparse.ArgumentParser()
+args.add_argument("-i", "--id", type=str)
+args.add_argument("-d", "--delay", type=int)
+args.add_argument("-p", "--port", type=int)
+args.add_argument("-lead", "--is_leader", type=bool, default=False)
+parsed = vars(args.parse_args())
+port = parsed["port"]
 
 
-def init():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global node_instance
-    global port
+    global parsed
 
-    args = argparse.ArgumentParser()
-    args.add_argument("-i", "--id", type=str)
-    args.add_argument("-d", "--delay", type=int)
-    args.add_argument("-p", "--port", type=int)
-    parsed = vars(args.parse_args())
+    # args = argparse.ArgumentParser()
+    # args.add_argument("-i", "--id", type=str)
+    # args.add_argument("-d", "--delay", type=int)
+    # args.add_argument("-p", "--port", type=int)
+    # args.add_argument("-lead", "--is_leader", type=bool, default=False)
+    # parsed = vars(args.parse_args())
 
-    # print(parsed)
-    port = parsed["port"]
+    print(parsed)
     node_instance = RaftNode(**parsed)
+    print(node_instance)
+    await node_instance.start()
+
+    yield
+
+    await node_instance.stop()
 
 
-@app.post("/listen")
-async def listener():
-    data: Union[HeartBeat, AppendLog, CommitLog] = request.json
+app = FastAPI(lifespan=lifespan)
 
-    if data["type"] == RequestType.HEARTBEAT:
-        pass
-    elif data["type"] == RequestType.APPEND_LOG:
-        pass
-    elif data["type"] == RequestType.COMMIT_LOG:
-        pass
-    else:
-        return jsonify({"message": "Bad Request"}), 400
 
-    resp = make_response()
-    resp.status_code = 200
-    return resp
+@app.post("/heartbeat")
+async def heartbeat():
+    assert node_instance is not None
+    node_instance.receive_heartbeat()
+    return {"message": "Heartbeat received"}, 200
+
+
+@app.post("/appendLog")
+async def append_log(log: AppendLog):
+    assert node_instance is not None
+    pass
+
+
+@app.post("/commit")
+async def commit_log(index: int):
+    assert node_instance is not None
+    pass
+
+
+@app.get("/vote")
+async def get_vote(index: int, term: int):
+    assert node_instance is not None
+    vote = node_instance.vote(term, index)
+
+    return {"vote": vote}, 200
 
 
 @app.get("/isLeader")
 def is_leader():
     global node_instance
     if node_instance is None:
-        return jsonify({"message": "Node not initialized"}), 500
+        return {"message": "Node not initialized"}, 500
 
     if node_instance.is_leader:
-        return jsonify({"isLeader": True}), 200
+        return {"isLeader": True}, 200
     else:
-        return jsonify({"isLeader": False}), 400
+        return {"isLeader": False}, 400
 
 
 if __name__ == "__main__":
-    print(node_instance)
-    init()
-    print(node_instance)
-    app.run(port=port)
+    uvicorn.run(
+        "main:app",
+        port=port,
+    )

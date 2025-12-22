@@ -9,6 +9,7 @@ class RequestType(Enum):
     HEARTBEAT = 1
     APPEND_LOG = 2
     COMMIT_LOG = 3
+    GET_VOTE = 4
 
 
 @dataclass
@@ -26,3 +27,10 @@ class AppendLog(TypedDict):
 class CommitLog(TypedDict):
     type: RequestType
     index: int
+
+
+@dataclass
+class GetVote(TypedDict):
+    type: RequestType
+    index: int
+    term: int

@@ -3,8 +3,6 @@ from typing import List
 from dataclasses import dataclass, field
 import asyncio
 
-from .operation import Operation
-
 
 from .log import Log
 
@@ -19,11 +17,7 @@ class RaftNode:
     delay: int  # in ms
     port: int
     is_leader: bool = field(default=False)
-    logs: List[Log] = field(
-        default_factory=lambda: [
-            Log(index=0, term=0, operation=Operation(opcode=0, data="nil"))
-        ]
-    )
+    logs: List[Log] = field(default_factory=list)
     last_hearbeat: float = field(default=time.time(), init=False)
 
     def __post_init__(self):
@@ -34,12 +28,13 @@ class RaftNode:
         self.heartbeat_task = asyncio.create_task(self.send_heartbeat())
         self.check_leader_task = asyncio.create_task(self.check_leader())
 
-    def receive_heartbeat(self):
-        self.last_hearbeat = time.time()
-
     async def stop(self):
         self.heartbeat_task.cancel()
         self.check_leader_task.cancel()
+
+    # def __del__(self):
+    #     self.heartbeat_task.cancel()
+    #     self.check_leader_task.cancel()
 
     def get_votes(self):
         """
@@ -47,12 +42,6 @@ class RaftNode:
         """
         print(f"{self} wants a leader")
         pass
-
-    def vote(self, term: int, index: int) -> bool:
-        if term > self.term and index >= self.index:
-            return True
-        else:
-            return False
 
     async def send_heartbeat(self):
         """
@@ -64,24 +53,18 @@ class RaftNode:
                     if i != self.port:
                         # send heartbeat to /listen
                         pass
-            await asyncio.sleep(heartbeat_interval / 1000)
+                await asyncio.sleep(heartbeat_interval)
 
     async def check_leader(self):
         """
         check if leader is alive
         """
         while True:
-            # print(
-            #     f"Last heartbeat: {self.last_hearbeat}, Current time: {time.time()}, check: {self.last_hearbeat + self.delay} "
-            # )
-            if (
-                not self.is_leader
-                and self.last_hearbeat + self.delay / 1000 < time.time()
-            ):
+            if not self.is_leader and self.last_hearbeat + self.delay < time.time():
                 # perform leader election
                 self.get_votes()
 
-            await asyncio.sleep(self.delay / 1000)
+            await asyncio.sleep(self.delay)
 
     @property
     def term(self):

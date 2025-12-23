@@ -3,9 +3,9 @@ from subprocess import Popen
 processes = []
 port = 3000  # starting val
 id = 1
-delay = 150
+delay = 2000
 
-for i in range(2):
+for i in range(5):
     cmd = [
         "python3",
         "main.py",
@@ -20,7 +20,7 @@ for i in range(2):
     processes.append(p)
     port += 1
     id += 1
-    delay += 50
+    delay += 500
 
 
 for i in processes:

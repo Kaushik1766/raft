@@ -1,11 +1,13 @@
+import argparse
+import signal
+from contextlib import asynccontextmanager
+import os
+
 import uvicorn
 from fastapi import FastAPI, Response, status
-from contextlib import asynccontextmanager
-import argparse
 
 from src.network_requests import AppendLog
 from src.raft import RaftNode
-
 
 node_instance: RaftNode | None = None
 args = argparse.ArgumentParser()
@@ -22,13 +24,6 @@ async def lifespan(app: FastAPI):
     global node_instance
     global parsed
 
-    # args = argparse.ArgumentParser()
-    # args.add_argument("-i", "--id", type=str)
-    # args.add_argument("-d", "--delay", type=int)
-    # args.add_argument("-p", "--port", type=int)
-    # args.add_argument("-lead", "--is_leader", type=bool, default=False)
-    # parsed = vars(args.parse_args())
-
     print(parsed)
     node_instance = RaftNode(**parsed)
     print(node_instance)
@@ -40,6 +35,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+@app.get("/shutdown")
+async def shutdown():
+    os.kill(os.getpid(), signal.SIGTERM)
+    return Response(status_code=200, content="Server shutting down...")
 
 
 @app.post("/heartbeat")
@@ -62,8 +63,11 @@ async def commit_log(index: int):
 
 
 @app.get("/vote")
-async def get_vote(index: int, term: int, response: Response):
+async def get_vote(index: int, term: int, id: str, response: Response):
     assert node_instance is not None
+    print(
+        f"{node_instance.id} Received vote request for term {term} and index {index} from {id}"
+    )
     vote = node_instance.vote(term, index)
 
     response.status_code = status.HTTP_200_OK

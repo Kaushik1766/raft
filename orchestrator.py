@@ -5,7 +5,7 @@ port = 3000  # starting val
 id = 1
 delay = 150
 
-for i in range(1):
+for i in range(2):
     cmd = [
         "python3",
         "main.py",

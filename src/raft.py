@@ -2,6 +2,7 @@ import time
 from typing import List
 from dataclasses import dataclass, field
 import asyncio
+import aiohttp
 
 from .operation import Operation
 
@@ -9,7 +10,7 @@ from .operation import Operation
 from .log import Log
 
 
-peer_ports = []
+peer_ports = [3000, 3001, 3002, 3003, 3004]
 heartbeat_interval = 50
 
 
@@ -31,6 +32,7 @@ class RaftNode:
             raise ValueError("Delay must be greater than heartbeat interval")
 
     async def start(self):
+        self.session = aiohttp.ClientSession()
         self.heartbeat_task = asyncio.create_task(self.send_heartbeat())
         self.check_leader_task = asyncio.create_task(self.check_leader())
 
@@ -41,12 +43,19 @@ class RaftNode:
         self.heartbeat_task.cancel()
         self.check_leader_task.cancel()
 
-    def get_votes(self):
+    async def get_votes(self):
         """
         get votes from all peers
         """
-        print(f"{self} wants a leader")
-        pass
+        tasks = []
+        for i in peer_ports:
+            if i != self.port:
+                tasks.append(self.session.get(f"http://localhost:{i}/vote"))
+
+        res = await asyncio.gather(*tasks)
+        print(res)
+        for i in res:
+            print(await i.text())
 
     def vote(self, term: int, index: int) -> bool:
         if term > self.term and index >= self.index:
@@ -79,7 +88,7 @@ class RaftNode:
                 and self.last_hearbeat + self.delay / 1000 < time.time()
             ):
                 # perform leader election
-                self.get_votes()
+                await self.get_votes()
 
             await asyncio.sleep(self.delay / 1000)
 

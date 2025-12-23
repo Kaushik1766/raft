@@ -1,11 +1,9 @@
-import json
 import uvicorn
-from typing import Union
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Response, status
 from contextlib import asynccontextmanager
 import argparse
 
-from src.network_requests import AppendLog, CommitLog, GetVote, HeartBeat, RequestType
+from src.network_requests import AppendLog
 from src.raft import RaftNode
 
 
@@ -64,23 +62,27 @@ async def commit_log(index: int):
 
 
 @app.get("/vote")
-async def get_vote(index: int, term: int):
+async def get_vote(index: int, term: int, response: Response):
     assert node_instance is not None
     vote = node_instance.vote(term, index)
 
-    return {"vote": vote}, 200
+    response.status_code = status.HTTP_200_OK
+    return {"vote": vote}
 
 
 @app.get("/isLeader")
-def is_leader():
+def is_leader(response: Response):
     global node_instance
     if node_instance is None:
-        return {"message": "Node not initialized"}, 500
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"message": "Node not initialized"}
 
     if node_instance.is_leader:
-        return {"isLeader": True}, 200
+        response.status_code = status.HTTP_200_OK
+        return {"isLeader": True}
     else:
-        return {"isLeader": False}, 400
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return {"isLeader": False}
 
 
 if __name__ == "__main__":

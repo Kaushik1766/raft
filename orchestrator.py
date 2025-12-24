@@ -3,7 +3,7 @@ from subprocess import Popen
 processes = []
 port = 3000  # starting val
 id = 1
-delay = 2000
+delay = 1000
 
 for i in range(5):
     cmd = [
@@ -20,8 +20,7 @@ for i in range(5):
     processes.append(p)
     port += 1
     id += 1
-    delay += 500
-
+    delay += 100
 
 for i in processes:
     assert isinstance(i, Popen)

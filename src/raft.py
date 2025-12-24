@@ -11,13 +11,14 @@ from aiohttp.client import ClientSession
 from .log import Log
 from .operation import Operation
 
-peer_ports = [3000, 3001, 3002, 3003, 3004]
-heartbeat_interval = 50
+peer_ports = [i for i in range(3000, 3005)]
+heartbeat_interval = 100
 
 
 def updates_heartbeat(func: FunctionType):
     def wrapper(self, *args, **kwargs):
         self.last_hearbeat = time.time()
+        print(f"{self.id} received heartbeat")
         return func(self, *args, **kwargs)
 
     return wrapper
@@ -90,6 +91,7 @@ class RaftNode:
             self.is_leader = True
             print(f"Node {self.id} became the leader for term {self.current_term}")
         else:
+            self.current_term -= 1
             print(f"{self.id} cant get quorum")
 
     @updates_heartbeat
@@ -106,11 +108,17 @@ class RaftNode:
         """
 
         async def heartbeat_request(session: ClientSession, port: int):
-            async with session.post(f"http://localhost:{port}/heartbeat") as response:
-                return response.status
+            try:
+                async with session.post(
+                    f"http://localhost:{port}/heartbeat"
+                ) as response:
+                    return response.status
+            except Exception:
+                # print(f"node on port {port} is unreachable")
+                return None
 
-        tasks: List[Task] = []
         while True:
+            tasks: List[Task] = []
             if self.is_leader:
                 for i in peer_ports:
                     if i != self.port:
@@ -132,7 +140,7 @@ class RaftNode:
                 # perform leader election
                 await self.get_votes()
 
-            await asyncio.sleep(0.05)
+            await asyncio.sleep(self.delay / 1000)
 
     # @property
     # def term(self):

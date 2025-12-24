@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 import os
 
 import uvicorn
+from uvicorn.config import LOGGING_CONFIG
 from fastapi import FastAPI, Response, status
 
 from src.network_requests import AppendLog
@@ -90,7 +91,8 @@ def is_leader(response: Response):
 
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "main:app",
-        port=port,
-    )
+    # LOGGING_CONFIG["formatters"]["default"]["fmt"] = "%(asctime)s  %(message)s"
+    # LOGGING_CONFIG["formatters"]["access"]["fmt"] = (
+    #     '%(asctime)s %(client_addr)s - "%(request_line)s" %(status_code)s'
+    # )
+    uvicorn.run("main:app", port=port, log_config=None)

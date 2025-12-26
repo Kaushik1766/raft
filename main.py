@@ -1,11 +1,12 @@
 import argparse
+import os
 import signal
 from contextlib import asynccontextmanager
-import os
 
 import uvicorn
-from uvicorn.config import LOGGING_CONFIG
 from fastapi import FastAPI, Response, status
+from pydantic.v1.types import NonNegativeFloat
+from uvicorn.config import LOGGING_CONFIG
 
 from src.network_requests import AppendLog
 from src.raft import RaftNode
@@ -47,6 +48,7 @@ async def shutdown():
 @app.post("/heartbeat")
 async def heartbeat():
     assert node_instance is not None
+    # print(f"heartbear received in node{node_instance.id}")
     node_instance.receive_heartbeat()
     return {"message": "Heartbeat received"}, 200
 
@@ -69,7 +71,7 @@ async def get_vote(index: int, term: int, id: str, response: Response):
     print(
         f"{node_instance.id} Received vote request for term {term} and index {index} from {id}"
     )
-    vote = node_instance.vote(term, index)
+    vote = node_instance.vote(term, index, id)
 
     response.status_code = status.HTTP_200_OK
     return {"vote": vote}
@@ -82,12 +84,7 @@ def is_leader(response: Response):
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return {"message": "Node not initialized"}
 
-    if node_instance.is_leader:
-        response.status_code = status.HTTP_200_OK
-        return {"isLeader": True}
-    else:
-        response.status_code = status.HTTP_400_BAD_REQUEST
-        return {"isLeader": False}
+    return {"isLeader":node_instance.is_leader}
 
 
 if __name__ == "__main__":
@@ -95,4 +92,5 @@ if __name__ == "__main__":
     # LOGGING_CONFIG["formatters"]["access"]["fmt"] = (
     #     '%(asctime)s %(client_addr)s - "%(request_line)s" %(status_code)s'
     # )
+    # uvicorn.run("main:app", port=port)
     uvicorn.run("main:app", port=port, log_config=None)

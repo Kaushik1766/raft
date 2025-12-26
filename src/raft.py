@@ -1,4 +1,6 @@
 import asyncio
+import os
+import signal
 import time
 from asyncio.tasks import Task
 from dataclasses import dataclass, field
@@ -18,7 +20,7 @@ heartbeat_interval = 100
 def updates_heartbeat(func: FunctionType):
     def wrapper(self, *args, **kwargs):
         self.last_hearbeat = time.time()
-        print(f"{self.id} received heartbeat")
+        # print(f"{self.id} received heartbeat")
         return func(self, *args, **kwargs)
 
     return wrapper
@@ -37,6 +39,7 @@ class RaftNode:
     )
     last_hearbeat: float = field(default=time.time(), init=False)
     current_term: int = field(default=0, init=False)
+    voted_for_term: int = field(default=0, init=False)
 
     def __post_init__(self):
         if self.delay < heartbeat_interval:
@@ -73,33 +76,43 @@ class RaftNode:
                     },
                 ) as response:
                     return await response.json()
-            except Exception as e:
-                print(f"Error fetching vote from {port}: {e}")
-                return False
+            except Exception:
+                print(f"Error fetching vote from {port}")
+                return None
 
         tasks: List[Task] = []
         self.current_term += 1
+        self.voted_for_term = self.current_term
         for i in peer_ports:
             if i != self.port:
                 tasks.append(asyncio.create_task(fetch_vote(self.session, i)))
 
         res = await asyncio.gather(*tasks)
-        res = list(map(lambda x: x["vote"] if x else False, res))
-        # print(list(res))
+        votes = []
+        for i in res:
+            if i is not None:
+                votes.append(i['vote'])
 
-        if sum(res) + 1 > len(peer_ports) // 2:
+        if sum(votes) + 1 > len(peer_ports) // 2:
             self.is_leader = True
             print(f"Node {self.id} became the leader for term {self.current_term}")
+        elif len(votes)+1<=len(peer_ports)//2:
+            print("More than half nodes are down, shutting down....")
+            os.kill(os.getpid(), signal.SIGTERM)
         else:
-            self.current_term -= 1
+            # self.current_term -= 1
             print(f"{self.id} cant get quorum")
 
-    @updates_heartbeat
-    def vote(self, term: int, index: int) -> bool:
-        if term > self.current_term and index >= self.index and not self.is_leader:
+    @updates_heartbeat # updating so it doesnt start election
+    def vote(self, term: int, index: int, id: str) -> bool:
+        if term > self.current_term and index >= self.index and self.voted_for_term < term:
             self.current_term = term
+            self.voted_for_term = term
+            # self.is_leader = False
+            print(f"{self.id} voted for {id} in term {term}")
             return True
         else:
+            print(f"{self.id} rejected request of {id} in term {term}")
             return False
 
     async def send_heartbeat(self):

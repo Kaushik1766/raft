@@ -5,8 +5,6 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, Response, status
-from pydantic.v1.types import NonNegativeFloat
-from uvicorn.config import LOGGING_CONFIG
 
 from src.network_requests import AppendLog
 from src.raft import RaftNode
@@ -84,7 +82,12 @@ def is_leader(response: Response):
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return {"message": "Node not initialized"}
 
-    return {"isLeader":node_instance.is_leader}
+    return {"isLeader": node_instance.is_leader}
+
+
+@app.get("/health")
+def is_alive(response: Response):
+    return {"status": "OK"}
 
 
 if __name__ == "__main__":

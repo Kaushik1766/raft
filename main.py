@@ -6,8 +6,8 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI, Response, status
 
-from src.network_requests import AppendLog
-from src.raft import RaftNode
+from src.models.network_requests import AppendLog
+from src.service.raft import RaftNode
 
 node_instance: RaftNode | None = None
 args = argparse.ArgumentParser()

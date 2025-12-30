@@ -1,6 +1,6 @@
-from dataclasses import dataclass
 from enum import Enum
-from typing import TypedDict
+
+from pydantic import BaseModel
 
 from .log import Log
 
@@ -12,25 +12,21 @@ class RequestType(Enum):
     GET_VOTE = 4
 
 
-@dataclass
-class HeartBeat(TypedDict):
+class HeartBeat(BaseModel):
     type: RequestType
 
 
-@dataclass
-class AppendLog(TypedDict):
+class AppendLog(BaseModel):
     type: RequestType
     data: Log
 
 
-@dataclass
-class CommitLog(TypedDict):
+class CommitLog(BaseModel):
     type: RequestType
     index: int
 
 
-@dataclass
-class GetVote(TypedDict):
+class GetVote(BaseModel):
     type: RequestType
     index: int
     term: int

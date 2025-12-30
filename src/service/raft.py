@@ -10,8 +10,8 @@ from typing import List
 import aiohttp
 from aiohttp.client import ClientSession
 
-from .log import Log
-from .operation import Operation
+from ..models.log import Log
+from ..models.operation import Operation
 
 peer_ports = [i for i in range(3000, 3005)]
 heartbeat_interval = 100
